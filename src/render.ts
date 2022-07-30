@@ -32,31 +32,36 @@ void main() {
 `;
 
 const fragmentShaderSrc = `
-precision mediump float;
+// precision mediump float;
+precision highp float;
 
 // our texture
 uniform sampler2D u_image;
 uniform vec2 u_textureSize;
-uniform float u_kernel[9];
-uniform float u_kernelWeight;
+uniform vec2 u_otherResolution;
 
 // the texCoords passed in from the vertex shader.
 varying vec2 v_texCoord;
 
-void main() {
-   vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
-   vec4 colorSum =
-       texture2D(u_image, v_texCoord + onePixel * vec2(-1, -1)) * u_kernel[0] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 0, -1)) * u_kernel[1] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 1, -1)) * u_kernel[2] +
-       texture2D(u_image, v_texCoord + onePixel * vec2(-1,  0)) * u_kernel[3] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 0,  0)) * u_kernel[4] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 1,  0)) * u_kernel[5] +
-       texture2D(u_image, v_texCoord + onePixel * vec2(-1,  1)) * u_kernel[6] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 0,  1)) * u_kernel[7] +
-       texture2D(u_image, v_texCoord + onePixel * vec2( 1,  1)) * u_kernel[8] ;
+vec4 blur9(sampler2D image, vec2 uv, vec2 resolution, vec2 direction) {
+    vec4 color = vec4(0.0);
+    vec2 off1 = vec2(1.3846153846) * direction;
+    vec2 off2 = vec2(3.2307692308) * direction;
+    color += texture2D(image, uv) * 0.2270270270;
+    color += texture2D(image, uv + (off1 / resolution)) * 0.3162162162;
+    color += texture2D(image, uv - (off1 / resolution)) * 0.3162162162;
+    color += texture2D(image, uv + (off2 / resolution)) * 0.0702702703;
+    color += texture2D(image, uv - (off2 / resolution)) * 0.0702702703;
+    return color;
+}
 
-   gl_FragColor = vec4((colorSum / u_kernelWeight).rgb, 1);
+void main() {
+//    vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
+    vec2 uv = vec2(gl_FragCoord.xy / u_otherResolution);
+    // flip
+    uv.y = 1.0 - uv.y;
+    vec2 direction = vec2(2, 0);
+    gl_FragColor = blur9(u_image, uv, u_otherResolution, direction);
 }
 `;
 
@@ -146,9 +151,10 @@ export function render(image: HTMLImageElement){
     const positionAttributeLocation: number = gl.getAttribLocation(program, "a_position");
     const texCoordAttributeLocation: number = gl.getAttribLocation(program, "a_texCoord");
     const resolutionUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_resolution") as WebGLUniformLocation;
+    const fragResolutionUniformLoation: WebGLUniformLocation = gl.getUniformLocation(program, "u_otherResolution") as WebGLUniformLocation;
     const textureSizeUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_textureSize") as WebGLUniformLocation;
-    const kernelLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernel[0]") as WebGLUniformLocation;
-    const kernelWeightLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernelWeight") as WebGLUniformLocation;
+    // const kernelLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernel[0]") as WebGLUniformLocation;
+    // const kernelWeightLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernelWeight") as WebGLUniformLocation;
     // const colorUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_color") as WebGLUniformLocation;
 
 
@@ -180,11 +186,11 @@ export function render(image: HTMLImageElement){
 
 
     // set kernel
-    const blurKernel = [
-        1,  0, -1,
-        2,  0, -2,
-        1,  0, -1
-    ];
+    // const blurKernel = [
+    //     1,  0, -1,
+    //     2,  0, -2,
+    //     1,  0, -1
+    // ];
 
 
     // Attributes get their data from buffers so we need to create a buffer
@@ -229,6 +235,7 @@ export function render(image: HTMLImageElement){
         
     // set the resolution
     gl.uniform2f(resolutionUniformLocation, gl.canvas.width, gl.canvas.height);
+    gl.uniform2f(fragResolutionUniformLoation, gl.canvas.width, gl.canvas.height);
     // gl.uniform4f(colorUniformLocation, 1, 0.5, 0, 1);
 
     gl.enableVertexAttribArray(positionAttributeLocation);
@@ -248,8 +255,8 @@ export function render(image: HTMLImageElement){
 
     gl.uniform2f(textureSizeUniformLocation, image.width, image.height);
 
-    gl.uniform1fv(kernelLocation, blurKernel);
-    gl.uniform1f(kernelWeightLocation, computeKernelWeight(blurKernel));
+    // gl.uniform1fv(kernelLocation, blurKernel);
+    // gl.uniform1f(kernelWeightLocation, computeKernelWeight(blurKernel));
 
     // A hidden part of gl.vertexAttribPointer is that it binds the current ARRAY_BUFFER to the attribute. 
     // In other words now this attribute is bound to positionBuffer. 
