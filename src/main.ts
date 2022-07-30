@@ -14,14 +14,14 @@ async function main(){
     }
 
 
-    render(ctx.canvas as any);
+    // render(ctx.canvas as any);
 
-    // const image = new Image();
-    // image.src = "/cat.png";
-    // image.onload = () => {
-    //     console.log("image loaded");
-    //     render(image);
-    // }
+    const image = new Image();
+    image.src = "/cat.png";
+    image.onload = () => {
+        console.log("image loaded");
+        render(image);
+    }
 }
 
 

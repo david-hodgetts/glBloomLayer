@@ -32,19 +32,31 @@ void main() {
 `;
 
 const fragmentShaderSrc = `
-// fragment shaders don't have a default precision so we need
-// to pick one. mediump is a good default
 precision mediump float;
 
 // our texture
 uniform sampler2D u_image;
- 
+uniform vec2 u_textureSize;
+uniform float u_kernel[9];
+uniform float u_kernelWeight;
+
 // the texCoords passed in from the vertex shader.
 varying vec2 v_texCoord;
- 
+
 void main() {
-   // Look up a color from the texture.
-   gl_FragColor = texture2D(u_image, v_texCoord);
+   vec2 onePixel = vec2(1.0, 1.0) / u_textureSize;
+   vec4 colorSum =
+       texture2D(u_image, v_texCoord + onePixel * vec2(-1, -1)) * u_kernel[0] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 0, -1)) * u_kernel[1] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 1, -1)) * u_kernel[2] +
+       texture2D(u_image, v_texCoord + onePixel * vec2(-1,  0)) * u_kernel[3] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 0,  0)) * u_kernel[4] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 1,  0)) * u_kernel[5] +
+       texture2D(u_image, v_texCoord + onePixel * vec2(-1,  1)) * u_kernel[6] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 0,  1)) * u_kernel[7] +
+       texture2D(u_image, v_texCoord + onePixel * vec2( 1,  1)) * u_kernel[8] ;
+
+   gl_FragColor = vec4((colorSum / u_kernelWeight).rgb, 1);
 }
 `;
 
@@ -101,6 +113,13 @@ function setRectangle(gl:WebGLRenderingContext, x: number, y: number, width: num
      x2, y2]), gl.STATIC_DRAW);
 }
 
+function computeKernelWeight(kernel:number[]): number {
+    const weight = kernel.reduce(function(prev, curr) {
+       return prev + curr;
+    });
+    return weight <= 0 ? 1 : weight;
+}
+
 export function render(image: HTMLImageElement){
     const canvas = document.getElementById("canvas") as HTMLCanvasElement;
 
@@ -127,6 +146,9 @@ export function render(image: HTMLImageElement){
     const positionAttributeLocation: number = gl.getAttribLocation(program, "a_position");
     const texCoordAttributeLocation: number = gl.getAttribLocation(program, "a_texCoord");
     const resolutionUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_resolution") as WebGLUniformLocation;
+    const textureSizeUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_textureSize") as WebGLUniformLocation;
+    const kernelLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernel[0]") as WebGLUniformLocation;
+    const kernelWeightLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernelWeight") as WebGLUniformLocation;
     // const colorUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_color") as WebGLUniformLocation;
 
 
@@ -155,6 +177,14 @@ export function render(image: HTMLImageElement){
 
     // Upload the image into the texture.
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+
+
+    // set kernel
+    const blurKernel = [
+        1,  0, -1,
+        2,  0, -2,
+        1,  0, -1
+    ];
 
 
     // Attributes get their data from buffers so we need to create a buffer
@@ -215,6 +245,11 @@ export function render(image: HTMLImageElement){
         const offset = 0;        // start at the beginning of the buffer
         gl.vertexAttribPointer(positionAttributeLocation, size, type, normalize, stride, offset)
     }
+
+    gl.uniform2f(textureSizeUniformLocation, image.width, image.height);
+
+    gl.uniform1fv(kernelLocation, blurKernel);
+    gl.uniform1f(kernelWeightLocation, computeKernelWeight(blurKernel));
 
     // A hidden part of gl.vertexAttribPointer is that it binds the current ARRAY_BUFFER to the attribute. 
     // In other words now this attribute is bound to positionBuffer. 
