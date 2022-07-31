@@ -21,6 +21,8 @@ async function main(){
     image.onload = () => {
         console.log("image loaded");
         render(image);
+        const webGLCanvas = document.getElementById('canvas') as HTMLCanvasElement;
+        ctx.drawImage(webGLCanvas, 0, 0);
     }
 }
 
