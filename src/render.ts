@@ -39,6 +39,8 @@ precision highp float;
 uniform sampler2D u_image;
 uniform vec2 u_textureSize;
 uniform vec2 u_otherResolution;
+uniform vec2 u_direction;
+
 
 // the texCoords passed in from the vertex shader.
 varying vec2 v_texCoord;
@@ -60,8 +62,7 @@ void main() {
     vec2 uv = vec2(gl_FragCoord.xy / u_otherResolution);
     // flip
     uv.y = 1.0 - uv.y;
-    vec2 direction = vec2(2, 0);
-    gl_FragColor = blur9(u_image, uv, u_otherResolution, direction);
+    gl_FragColor = blur9(u_image, uv, u_otherResolution, u_direction);
 }
 `;
 
@@ -153,6 +154,7 @@ export function render(image: HTMLImageElement){
     const resolutionUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_resolution") as WebGLUniformLocation;
     const fragResolutionUniformLoation: WebGLUniformLocation = gl.getUniformLocation(program, "u_otherResolution") as WebGLUniformLocation;
     const textureSizeUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_textureSize") as WebGLUniformLocation;
+    const directionUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_direction") as WebGLUniformLocation;
     // const kernelLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernel[0]") as WebGLUniformLocation;
     // const kernelWeightLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_kernelWeight") as WebGLUniformLocation;
     // const colorUniformLocation: WebGLUniformLocation = gl.getUniformLocation(program, "u_color") as WebGLUniformLocation;
@@ -254,6 +256,11 @@ export function render(image: HTMLImageElement){
     }
 
     gl.uniform2f(textureSizeUniformLocation, image.width, image.height);
+    const direction = {
+        x: 1,
+        y: 0,
+    }
+    gl.uniform2f(directionUniformLocation, direction.x, direction.y);
 
     // gl.uniform1fv(kernelLocation, blurKernel);
     // gl.uniform1f(kernelWeightLocation, computeKernelWeight(blurKernel));
